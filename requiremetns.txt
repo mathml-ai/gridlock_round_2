@@ -22,3 +22,7 @@ tqdm>=4.66.0
 shap>=0.45.0
 eli5>=0.13.0 
 google-generativeai
+
+# API Architecture & Serving Frameworks
+fastapi>=0.100.0
+uvicorn>=0.22.0
