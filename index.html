@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic AI - Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map { height: 550px; width: 100%; border-radius: 0.75rem; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans antialiased min-h-screen">
+
+    <div id="loginGate" class="fixed inset-0 bg-gray-950 flex items-center justify-between z-[9999] px-12">
+        <div class="hidden md:flex flex-col max-w-md">
+            <span class="text-5xl mb-4">🚨</span>
+            <h1 class="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent mb-4">
+                Traffic AI
+            </h1>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                Enterprise Automated Parking Intelligence & Predictive Traffic Enforcement for the Bangalore Traffic Police Department.
+            </p>
+        </div>
+
+        <div class="bg-gray-900 p-8 rounded-2xl border border-gray-800 shadow-2xl w-full max-w-md mx-auto md:mx-0">
+            <h2 class="text-xl font-bold text-gray-100 mb-2">Officer Authentication</h2>
+            <p class="text-xs text-gray-400 mb-6">Enter your evaluator credentials to initialize session telemetry.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Badge Email</label>
+                    <input type="email" id="loginEmail" value="judge.evaluation@gmail.com"
+                        class="w-full bg-gray-950 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 focus:outline-none focus:border-orange-500 transition-colors" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Passkey</label>
+                    <input type="password" id="loginPassword" value="••••••••••••"
+                        class="w-full bg-gray-950 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 focus:outline-none focus:border-orange-500 transition-colors" />
+                </div>
+                <button onclick="handleMockLogin()"
+                    class="w-full bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-orange-950/20 mt-2">
+                    Verify & Authenticate
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="appContent" class="opacity-0 transition-opacity duration-500 pointer-events-none">
+        <header class="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">🚨</span>
+                <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">
+                    Traffic AI v1.0
+                </h1>
+            </div>
+            <div class="text-xs text-gray-400 bg-gray-900 px-3 py-1 rounded-full border border-gray-800 flex items-center space-x-2">
+                <span>Active Session:</span>
+                <span id="userBadge" class="text-emerald-400 font-mono font-semibold">None</span>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="space-y-6 lg:col-span-1">
+                <div class="bg-gray-950 p-6 rounded-xl border border-gray-800 shadow-xl">
+                    <h2 class="text-lg font-semibold mb-4 text-orange-400 flex items-center">
+                        <span class="mr-2">🛠️</span> Live Operations
+                    </h2>
+                    <div class="space-y-4">
+                        <button onclick="loadMapTelemetry()" 
+                            class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-blue-900/30">
+                            🔄 Fetch Live Grid Maps
+                        </button>
+                        <button onclick="triggerGenAIDispatch()" id="dispatchBtn" disabled
+                            class="w-full bg-gray-800 text-gray-500 font-bold py-3 px-4 rounded-lg cursor-not-allowed transition-colors shadow-lg">
+                            ⚡ Execute GenAI Dispatch
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-gray-950 p-6 rounded-xl border border-gray-800 shadow-xl flex flex-col h-[320px]">
+                    <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center">
+                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-2"></span>
+                        System Output Stream
+                    </h3>
+                    <div id="consoleLogs" class="bg-gray-900 rounded-lg p-4 font-mono text-xs text-emerald-400 overflow-y-auto flex-1 space-y-2 border border-gray-800">
+                        <div>[SYSTEM] Systems initialized. Awaiting session deployment...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-gray-950 p-6 rounded-xl border border-gray-800 shadow-xl flex flex-col">
+                <h2 class="text-lg font-semibold mb-4 text-gray-100 flex items-center justify-between">
+                    <span class="flex items-center"><span class="mr-2">🗺️</span> Predictive Micro-Grid</span>
+                    <span id="targetCount" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400 font-mono">0 active cells loaded</span>
+                </h2>
+                <div class="flex-1 min-h-[550px] bg-gray-900 rounded-xl overflow-hidden relative">
+                    <div id="map"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const BACKEND_URL = "http://127.0.0.1:8000";
+        let map, markerGroup;
+        let loggedInUserEmail = ""; // Holds the login session state globally
+
+        // 🔐 Handle Mock Authentication Transition
+        function handleMockLogin() {
+            const emailInput = document.getElementById("loginEmail").value.trim();
+            if(!emailInput || !emailInput.includes("@")) {
+                alert("Please enter a valid department email structure.");
+                return;
+            }
+
+            // Lock the session email state
+            loggedInUserEmail = emailInput;
+            document.getElementById("userBadge").innerText = loggedInUserEmail;
+
+            // Transition UI visibility smoothly
+            const gate = document.getElementById("loginGate");
+            const app = document.getElementById("appContent");
+            
+            gate.style.display = "none";
+            app.classList.remove("opacity-0", "pointer-events-none");
+            app.classList.add("opacity-100");
+
+            // Initialize Spatial Map
+            initializeMap();
+            logToConsole(`[SESSION] Token authorized for: ${loggedInUserEmail}`);
+        }
+
+        function initializeMap() {
+            map = L.map('map').setView([12.9716, 77.5946], 12);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+            }).addTo(map);
+            markerGroup = L.layerGroup().addTo(map);
+            logToConsole("[SYSTEM] Spatial canvas successfully mapped to Bangalore.");
+        }
+
+        function logToConsole(text, isError = false) {
+            const consoleBox = document.getElementById("consoleLogs");
+            const logEntry = document.createElement("div");
+            logEntry.className = isError ? "text-red-400 font-semibold" : "text-emerald-400";
+            logEntry.innerText = `> ${text}`;
+            consoleBox.appendChild(logEntry);
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+        }
+
+        async function loadMapTelemetry() {
+            logToConsole("[API] Invoking endpoint: GET /api/map_telemetry...");
+            markerGroup.clearLayers();
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/map_telemetry`);
+                if (!response.ok) throw new Error(`HTTP Error Status: ${response.status}`);
+                const result = await response.json();
+                const hotspotData = result.data;
+                
+                document.getElementById("targetCount").innerText = `${hotspotData.length} active cells loaded`;
+                logToConsole(`[SUCCESS] Loaded ${hotspotData.length} localized grid matrices from model.`);
+
+                hotspotData.forEach(cell => {
+                    let color = "#3b82f6";
+                    if (cell.predicted_next_hour >= 15) color = "#ef4444";
+                    else if (cell.predicted_next_hour >= 5) color = "#f97316";
+
+                    const circleMarker = L.circleMarker([cell.latitude, cell.longitude], {
+                        radius: 14 + (cell.predicted_next_hour * 0.5),
+                        fillColor: color,
+                        color: color,
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.45
+                    }).addTo(markerGroup);
+
+                    const popupText = `
+                        <div class="text-gray-900 font-sans p-1">
+                            <h4 class="font-bold border-b pb-1 mb-1 text-sm">Hex ID: ${cell.h3_cell}</h4>
+                            <p class="text-xs">🔮 <b>Predicted Violations:</b> <span class="text-red-600 font-bold">${cell.predicted_next_hour}</span></p>
+                            <p class="text-xs">📈 <b>Momentum Delta:</b> ${cell.growth_rate.toFixed(2)}x</p>
+                            <p class="text-xs text-gray-500 mt-1 font-mono">${cell.latitude.toFixed(4)}, ${cell.longitude.toFixed(4)}</p>
+                        </div>
+                    `;
+                    circleMarker.bindPopup(popupText);
+                });
+
+                if(hotspotData.length > 0) {
+                    map.panTo(new L.LatLng(hotspotData[0].latitude, hotspotData[0].longitude));
+                }
+
+                const dispatchBtn = document.getElementById("dispatchBtn");
+                dispatchBtn.disabled = false;
+                dispatchBtn.className = "w-full bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white font-bold py-3 px-4 rounded-lg cursor-pointer transition-all shadow-lg transform active:scale-[0.98]";
+            } catch (err) {
+                logToConsole(`[ERROR] Network transaction aborted: ${err.message}`, true);
+            }
+        }
+
+        async function triggerGenAIDispatch() {
+            // 🚨 AUTOMATION AT WORK: Pulls the email from the login state variable natively
+            logToConsole(`[API] Commencing POST /api/trigger_dispatch targeting active token recipient: ${loggedInUserEmail}`);
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/trigger_dispatch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ judge_email: loggedInUserEmail }) // Automatically sends their login email!
+                });
+
+                if (!response.ok) throw new Error(`HTTP Server Error Status: ${response.status}`);
+                const result = await response.json();
+                logToConsole("[SUCCESS] SMTP Pipeline clear! Email dispatched.");
+                
+                if (result.preview && result.preview.length > 0) {
+                    logToConsole(`[AI RESPONSE HEADER]: ${result.preview.join(' ')}...`);
+                }
+                alert(`Pipeline Execution Complete!\n\nGenAI Dispatch guidelines compiled and routed safely to your inbox:\n${loggedInUserEmail}`);
+            } catch (err) {
+                logToConsole(`[ERROR] Transmission process disrupted: ${err.message}`, true);
+            }
+        }
+    </script>
+</body>
+</html>
